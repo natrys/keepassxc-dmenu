@@ -12,27 +12,29 @@ proc defined_or_default {varname def} {
     }
 }
 
-set config $::env(HOME)/.config/kp-dmenu/config.tcl
-if {[file exists $config]} {
-    source $config
-} else {
-    puts stderr "Provide config file at $config"
+proc die {msg} {
+    puts stderr $msg
     exit 1
 }
 
+set config $::env(HOME)/.config/keepassxc-dmenu/config.tcl
+if {[file exists $config]} {
+    source $config
+} else {
+    die "Provide config file at $config"
+}
+
 if {![info exists kp_database_path]} {
-    puts stderr {Variable $kp_database_path must be defined}
-    exit 1
+    die {Variable $kp_database_path must be defined}
 } elseif {![file exists $kp_database_path]} {
-    puts stderr "Database file not found at $kp_database_path"
-    exit 1
+    die "Database file not found at $kp_database_path"
 }
 
 
 defined_or_default kp_dmenu {rofi -dmenu -i}
 defined_or_default kp_pinentry /usr/bin/pinentry-qt
 
-set kp_appdir /tmp/kp-dmenu/
+set kp_appdir /tmp/keepassxc-dmenu/
 file mkdir $kp_appdir
 exec chmod 700 $kp_appdir
 cd $kp_appdir
@@ -44,21 +46,22 @@ proc pinentry_get {} {
     send -- "SETDESC Enter Password for $::kp_database_path:\r"
     expect "OK"
     send -- "GETPIN\r"
-    expect "OK"
-    regexp -line {D (.*)\r} $expect_out(buffer) line pw
+    expect {
+        "OK" { regexp -line {D (.*)\r} $expect_out(buffer) line pw }
+        "cancelled" { die "User didn't input password, exiting." }
+    }
     send -- "BYE\r"
     wait
     return $pw
 }
 
-proc run {kp_pw} {
+proc enter_pw {kp_pw} {
     spawn keepassxc-cli open "$::kp_database_path"
     expect "Enter password"
     send -- "$kp_pw\r"
     expect "> "
     if {[regexp {Invalid credentials} $expect_out(buffer) match]} {
-        puts stderr "Wrong Password"
-        exit 1
+        die "Wrong Password"
     }
          
     send -- "ls -R -f\r"
@@ -89,13 +92,6 @@ proc run {kp_pw} {
     wait
 }
 
-
-### GET PASSWORD
-set kp_pw [pinentry_get]
-run $::kp_pw
-
-
-### Go into background and listen on the FIFO
 proc readpipe {} {
     if {[gets $::pipe line] > 0} {
         if {![string eq $line exit]} {
@@ -107,18 +103,34 @@ proc readpipe {} {
 }
 
 proc cleanup {} {
-    close $::pipe
-    file delete -force -- $::kp_appdir
-    exit 0
+    try {
+        close $::pipe
+    } finally {
+        file delete -force -- $::kp_appdir
+        exit 1
+    }
+}
+
+proc run {kp_pw} {
+    try {
+        enter_pw $kp_pw
+    } on error {result option} {
+        puts stderr $result
+        cleanup
+    }
 }
 
 
+### GET PASSWORD
+set kp_pw [pinentry_get]
+run $::kp_pw
+
+
+### Go into background and listen on the FIFO
 if {[fork] != 0} {
-    # parent
     exit
 }
 
-# child    
 disconnect
 trap {cleanup} {SIGTERM SIGINT}
 
@@ -137,4 +149,3 @@ if {[info exists kp_timeout]} {
 }
 
 cleanup
-exit
