@@ -1,4 +1,6 @@
-#!/bin/expect -f
+#!/bin/tclsh
+
+package require Expect
 
 # exp_internal 1
 log_user 0
