@@ -1,0 +1,48 @@
+*** Description
+
+Sift through keepassxc database entries and autotype the password directly in the input form with a hotkey.
+
+*** Requirements
+
+- [[https://github.com/keepassxreboot/keepassxc][keepassxc-cli]] (should come with default installation)
+- [[https://en.wikipedia.org/wiki/Expect][Tcl + Expect]]
+- [[https://tools.suckless.org/dmenu/][dmenu]] or [[https://github.com/davatorium/rofi][rofi]] (default)
+- [[https://github.com/jordansissel/xdotool][xdotool]]
+- Graphical pinentry (default is pinentry-qt)
+- Inability to figure out the browser plugin
+- Not have Mossad as enemy
+
+*** Usage
+
+Provide a config file at =~/.config/keepassxc-dmenu/config= which should contain at least ~kp_database_path~ variable. This is just a tcl file which will be sourced. An example:
+
+#+begin_src tcl
+set kpxc_database_path $::env(HOME)/Passwords.kdbx
+set kpxc_dmenu {rofi -dmenu -i}
+set kpxc_pinentry /usr/bin/pinentry-qt
+# set kpxc_timeout 60
+#+end_src
+
+This is primarily meant to be invoked by pressing hotkey (either configured in the DE, or in a hotkey daemon such as [[https://github.com/baskerville/sxhkd][sxhkd]]). An example for sxhkd may look:
+
+#+begin_src txt
+super + p
+  [ -e /tmp/keepassxc-dmenu/run ] && echo y > /tmp/keepassxc-dmenu/run || keepassxc-dmenu
+
+super + alt + p
+  echo exit > /tmp/keepassxc-dmenu/run
+#+end_src
+
+*** Technicalities
+
+Instead of requiring hardcoded password, It uses Expect to interact with pinentry to get it (~info pinentry~ surprised me with how much complex the inner workings of such an innocuous looking program be). Once it successfully runs for the first time, it then forks itself into background, disconnects from TTY, sets up signal handler and becomes a daemon; these are Expect features that are not available in Tcl. Communication is done through named pipe (fifo). Tcl itself has a built-in event loop, which is used to setup timeout for the daemon (or run forever until told/signalled to exit when ~kpxc_timeout~ isn't set).
+
+I deliberately didn't peer into alternatives because I was going to use Expect for practice anyway. It seems there is [[https://github.com/firecat53/keepmenu][keepmenu]] which has more features. I generally balk at the idea of a long running python program due to resource consideration. I would say, if resource consumption isn't a concern, one should use the official GUI anyway, since it has pretty good ergonomics.
+
+One curious difference between invoking the program directly with Expect and invoking it with Tcl (but requiring Expect inside) was that, direct Expect suppresses signals when blocked on I/O calls (open/gets), the work around that works in both cases is to register a handler in the event loop that will run when the named pipe becomes readable. Some gotchas aside, named pipes are so easy and useful that I end up using them all the time; maybe I will use POSIX message queue for my next script. I was also reading up on various keyrings ([[http://man7.org/linux/man-pages/man7/keyrings.7.html][kernal keyrings]] or libsecret) that could minimize the scope of the stay of the master password in memory. But I believe hardening features like ~ptrace_scope=1~ are now ubiquitous in all distros. Plus, the keyrings only reduce the scope of the password's stay in daemon's memory, not entirely eliminates it. If Mossad happens to be after you, listen to James Mickens:
+
+#+begin_quote
+In the real world, threat models are much simpler (see Figure 1). Basically, you're either dealing with Mossad or not-Mossad. If your adversary is not-Mossad, then you'll probably be fine if you pick a good password and don't respond to emails from ChEaPestPAiNPi11s@virus-basket.biz.ru. If your adversary is the Mossad, YOU'RE GONNA DIE AND THERE'S NOTHING THAT YOU CAN DO ABOUT IT. The Mossad is not intimidated by the fact that you employ =https://=. If the Mossad wants your data, they're going to use a drone to replace your cellphone with a piece of uranium that's shaped like a cellphone, and when you die of tumors filled with tumors, they're going to hold a press conference and say "It wasn't us" as they wear t-shirts that say "IT WAS DEFINITELY US," and then they're going to buy all of your stuff at your estate sale so that they can directly look at the photos of your vacation instead of reading your insipid emails about them. In summary, =https://= and two dollars will get you a bus ticket to nowhere.
+#+end_quote
+
+Aside from setting timeout, the slightly more paranoid should write a script that does things like exits this daemon, runs [[https://github.com/i3/i3lock][i3lock]] and so on, and either hook it to [[https://wiki.archlinux.org/index.php/Acpid][acpid]] to be invoked when laptop lid is closed or bind it to a hotkey in sxhkd.

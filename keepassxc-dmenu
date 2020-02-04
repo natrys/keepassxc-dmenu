@@ -2,7 +2,7 @@
 
 package require Expect
 
-# exp_internal 1
+exp_internal 1
 log_user 0
 set timeout -1
 
@@ -19,33 +19,33 @@ proc die {msg} {
     exit 1
 }
 
-set config $::env(HOME)/.config/keepassxc-dmenu/config.tcl
+set config $::env(HOME)/.config/keepassxc-dmenu/config
 if {[file exists $config]} {
     source $config
 } else {
     die "Provide config file at $config"
 }
 
-if {![info exists kp_database_path]} {
-    die {Variable $kp_database_path must be defined}
-} elseif {![file exists $kp_database_path]} {
-    die "Database file not found at $kp_database_path"
+if {![info exists kpxc_database_path]} {
+    die {Variable $kpxc_database_path must be defined}
+} elseif {![file exists $kpxc_database_path]} {
+    die "Database file not found at $kpxc_database_path"
 }
 
 
-defined_or_default kp_dmenu {rofi -dmenu -i}
-defined_or_default kp_pinentry /usr/bin/pinentry-qt
+defined_or_default kpxc_dmenu {rofi -dmenu -i}
+defined_or_default kpxc_pinentry /usr/bin/pinentry-qt
 
-set kp_appdir /tmp/keepassxc-dmenu/
-file mkdir $kp_appdir
-exec chmod 700 $kp_appdir
-cd $kp_appdir
+set kpxc_appdir /tmp/keepassxc-dmenu/
+file mkdir $kpxc_appdir
+exec chmod 700 $kpxc_appdir
+cd $kpxc_appdir
 
 
 proc pinentry_get {} {
-    spawn "$::kp_pinentry"
+    spawn "$::kpxc_pinentry"
     expect "OK"
-    send -- "SETDESC Enter Password for $::kp_database_path:\r"
+    send -- "SETDESC Enter Password for $::kpxc_database_path:\r"
     expect "OK"
     send -- "GETPIN\r"
     expect {
@@ -57,10 +57,10 @@ proc pinentry_get {} {
     return $pw
 }
 
-proc enter_pw {kp_pw} {
-    spawn keepassxc-cli open "$::kp_database_path"
+proc enter_pw {kpxc_pw} {
+    spawn keepassxc-cli open "$::kpxc_database_path"
     expect "Enter password"
-    send -- "$kp_pw\r"
+    send -- "$kpxc_pw\r"
     expect "> "
     if {[regexp {Invalid credentials} $expect_out(buffer) match]} {
         die "Wrong Password"
@@ -69,24 +69,24 @@ proc enter_pw {kp_pw} {
     send -- "ls -R -f\r"
     expect "> "
 
-    set kp_accounts {}
+    set kpxc_accounts {}
     foreach line [lrange [split $expect_out(buffer) "\n"] 1 end] {
         set item [string trim $line]
         if {($item eq "") || ([string index $item end] in {">" "/"})} {
             continue
         }
-        lappend kp_accounts $item
+        lappend kpxc_accounts $item
     }
 
     set window [exec xdotool getactivewindow]
-    if {[catch {exec {*}$::kp_dmenu << [join $kp_accounts "\n"]} result] == 0} {
+    if {[catch {exec {*}$::kpxc_dmenu << [join $kpxc_accounts "\n"]} result] == 0} {
         send -- "show -s \"$result\"\r"
         expect "> "
-        regexp -line {^Password: (.*)\r} $expect_out(buffer) line kp_entry_pw
+        regexp -line {^Password: (.*)\r} $expect_out(buffer) line kpxc_entry_pw
 
         exec {*}{xdotool -} << "
              windowactivate --sync $window
-             type --clearmodifiers -- $kp_entry_pw
+             type --clearmodifiers -- $kpxc_entry_pw
         "        
     }
     
@@ -97,7 +97,7 @@ proc enter_pw {kp_pw} {
 proc readpipe {} {
     if {[gets $::pipe line] > 0} {
         if {![string eq $line exit]} {
-            run $::kp_pw
+            run $::kpxc_pw
         } else {
             cleanup
         }
@@ -108,24 +108,23 @@ proc cleanup {} {
     try {
         close $::pipe
     } finally {
-        file delete -force -- $::kp_appdir
+        file delete -force -- $::kpxc_appdir
         exit 1
     }
 }
 
-proc run {kp_pw} {
+proc run {kpxc_pw} {
     try {
-        enter_pw $kp_pw
+        enter_pw $kpxc_pw
     } on error {result option} {
         puts stderr $result
-        cleanup
     }
 }
 
 
 ### GET PASSWORD
-set kp_pw [pinentry_get]
-run $::kp_pw
+set kpxc_pw [pinentry_get]
+enter_pw $kpxc_pw
 
 
 ### Go into background and listen on the FIFO
@@ -136,18 +135,17 @@ if {[fork] != 0} {
 disconnect
 trap {cleanup} {SIGTERM SIGINT}
 
-set kp_pipe run
-exec mkfifo $kp_pipe
+set kpxc_pipe run
+exec mkfifo $kpxc_pipe
 
-set pipe [open "$kp_pipe" {RDWR NONBLOCK}]
+set pipe [open "$kpxc_pipe" {RDWR NONBLOCK}]
 fileevent $pipe readable readpipe
 
-if {[info exists kp_timeout]} {
+if {[info exists kpxc_timeout]} {
     set ::state waiting
-    after [expr {60000 * $kp_timeout}] {set ::state timeout}
+    after [expr {60000 * $kpxc_timeout}] {set ::state timeout}
     vwait ::state
+    cleanup
 } else {
     vwait forever
 }
-
-cleanup
