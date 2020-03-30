@@ -90,6 +90,7 @@ proc enter_pw {kpxc_pw} {
         "        
     }
     
+    unset kpxc_accounts
     send -- "quit\r"
     wait
 }
