@@ -2,7 +2,7 @@
 
 package require Expect
 
-exp_internal 1
+# exp_internal 1
 log_user 0
 set timeout -1
 
@@ -90,6 +90,7 @@ proc enter_pw {kpxc_pw} {
         "        
     }
     
+    unset kpxc_accounts
     send -- "quit\r"
     wait
 }

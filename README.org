@@ -27,7 +27,7 @@ This is primarily meant to be invoked by pressing hotkey (either configured in t
 
 #+begin_src txt
 super + p
-  [ -e /tmp/keepassxc-dmenu/run ] && echo y > /tmp/keepassxc-dmenu/run || keepassxc-dmenu
+  [ -e /tmp/keepassxc-dmenu/run ] && echo y > /tmp/keepassxc-dmenu/run || keepassxc-dmenu >/dev/null 2>&1
 
 super + alt + p
   echo exit > /tmp/keepassxc-dmenu/run
@@ -35,7 +35,7 @@ super + alt + p
 
 *** Technicalities
 
-Instead of requiring hardcoded password, It uses Expect to interact with pinentry to get it (~info pinentry~ surprised me with how much complex the inner workings of such an innocuous looking program be). Once it successfully runs for the first time, it then forks itself into background, disconnects from TTY, sets up signal handler and becomes a daemon; these are Expect features that are not available in Tcl. Communication is done through named pipe (fifo). Tcl itself has a built-in event loop, which is used to setup timeout for the daemon (or run forever until told/signalled to exit when ~kpxc_timeout~ isn't set).
+Instead of requiring hardcoded password, it uses Expect to interact with pinentry to get it (~info pinentry~ surprised me with how much complex the inner workings of such an innocuous looking program be). Once it successfully runs for the first time, it then forks itself into background, disconnects from TTY, sets up signal handler and becomes a daemon; these are Expect features that are not available in Tcl. Communication is done through named pipe (fifo). Tcl itself has a built-in event loop, which is used to setup timeout for the daemon (or run forever until told/signalled to exit when ~kpxc_timeout~ isn't set).
 
 I deliberately didn't peer into alternatives because I was going to use Expect for practice anyway. It seems there is [[https://github.com/firecat53/keepmenu][keepmenu]] which has more features. I generally balk at the idea of a long running python program due to resource consideration. I would say, if resource consumption isn't a concern, one should use the official GUI anyway, since it has pretty good ergonomics.
 
