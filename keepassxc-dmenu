@@ -2,7 +2,7 @@
 
 package require Expect
 
-exp_internal 1
+# exp_internal 1
 log_user 0
 set timeout -1
 
