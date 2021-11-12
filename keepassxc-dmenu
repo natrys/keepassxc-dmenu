@@ -60,6 +60,9 @@ proc pinentry_get {} {
 proc enter_pw {kpxc_pw} {
     spawn keepassxc-cli open "$::kpxc_database_path"
     expect "Enter password"
+    match_max 5000
+    set spawn_id $expect_out(spawn_id)
+
     send -- "$kpxc_pw\r"
     expect "> "
     if {[regexp {Invalid credentials} $expect_out(buffer) match]} {
@@ -93,6 +96,7 @@ proc enter_pw {kpxc_pw} {
     unset kpxc_accounts
     send -- "quit\r"
     wait
+    close $spawn_id
 }
 
 proc readpipe {} {
