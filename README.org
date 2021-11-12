@@ -4,7 +4,7 @@ Sift through keepassxc database entries and autotype the password directly in th
 
 *** Requirements
 
-- [[https://github.com/keepassxreboot/keepassxc][keepassxc-cli]] (should come with default installation)
+- [[https://github.com/keepassxreboot/keepassxc][keepassxc-cli]] (comes with default install; minimum version requirement >= 2.5.0)
 - [[https://en.wikipedia.org/wiki/Expect][Tcl + Expect]]
 - [[https://tools.suckless.org/dmenu/][dmenu]] or [[https://github.com/davatorium/rofi][rofi]] (default)
 - [[https://github.com/jordansissel/xdotool][xdotool]]
