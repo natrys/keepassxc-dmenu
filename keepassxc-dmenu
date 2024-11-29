@@ -75,7 +75,7 @@ proc enter_pw {kpxc_pw} {
     set kpxc_accounts {}
     foreach line [lrange [split $expect_out(buffer) "\n"] 1 end] {
         set item [string trim $line]
-        if {($item eq "") || ([string index $item end] in {">" "/"})} {
+        if {($item eq "") || ([string index $item end] in {">" "/"}) || [string match "Recycle Bin/*" $item]} {
             continue
         }
         lappend kpxc_accounts $item
