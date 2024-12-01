@@ -18,7 +18,7 @@ Provide a config file at =~/.config/keepassxc-dmenu/config= which should contain
 
 #+begin_src tcl
 set kpxc_database_path $::env(HOME)/Passwords.kdbx
-set kpxc_dmenu {rofi -dmenu -i}
+set kpxc_dmenu {rofi -dmenu -no-custom -i}
 set kpxc_pinentry /usr/bin/pinentry-qt
 # set kpxc_timeout 60
 #+end_src
@@ -32,7 +32,3 @@ super + p
 super + alt + p
   echo exit > /tmp/keepassxc-dmenu/run
 #+end_src
-
-*** Commentary
-
-https://imrankhan.live/post/system/rofi-interface-for-keepassxc/

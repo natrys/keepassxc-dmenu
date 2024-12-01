@@ -84,9 +84,10 @@ proc enter_pw {kpxc_pw} {
     if {[catch {exec {*}$::kpxc_dmenu << [join $kpxc_accounts "\n"]} result] == 0} {
         send -- "show -s \"$result\"\r"
         expect "> "
-        regexp -line {^Password: (.*)\r} $expect_out(buffer) line kpxc_entry_pw
 
-        exec {*}{xdotool type --clearmodifiers --file -} << $kpxc_entry_pw
+        if {[regexp -line {^Password: (.*)\r} $expect_out(buffer) line kpxc_entry_pw]} {
+            exec {*}{xdotool type --clearmodifiers --file -} << $kpxc_entry_pw
+        }
     }
     
     unset kpxc_accounts
