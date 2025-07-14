@@ -7,27 +7,45 @@ Sift through keepassxc database entries and autotype the password directly in th
 - [[https://github.com/keepassxreboot/keepassxc][keepassxc-cli]] (comes with default install; minimum version requirement >= 2.5.0)
 - [[https://en.wikipedia.org/wiki/Expect][Tcl + Expect]]
 - [[https://tools.suckless.org/dmenu/][dmenu]] or [[https://github.com/davatorium/rofi][rofi]] (default)
-- [[https://github.com/jordansissel/xdotool][xdotool]]
+- [[https://github.com/jordansissel/xdotool][xdotool]] or any other dotool like application
 - Graphical pinentry (default is pinentry-qt)
 - Inability to figure out the browser plugin
 - Not have Mossad as enemy
 
 *** Usage
 
-Provide a config file at =~/.config/keepassxc-dmenu/config= which should contain at least ~kp_database_path~ variable. This is just a tcl file which will be sourced. An example:
+Provide a config file at =~/.config/keepassxc-dmenu/config= which should contain at least ~kpxc_database_path~ variable. This is just a tcl file which will be sourced.
+An example for X using xdotool (the default):
 
 #+begin_src tcl
 set kpxc_database_path $::env(HOME)/Passwords.kdbx
 set kpxc_dmenu {rofi -dmenu -no-custom -i}
 set kpxc_pinentry /usr/bin/pinentry-qt
+set kpx_dotool {xdotool -}
+set kpx_dotool_prefix "type "
+set kpx_notify "notify-send -u low \"Password inserted\" -t 1000"
 # set kpxc_timeout 60
 #+end_src
+
+Whilest an example for wayland may be:
+
+#+begin_src tcl
+set kpxc_database_path $::env(HOME)/Passwords.kdbx
+set kpxc_dmenu {wmenu -i -l 10 -b -p KEEPASS:}
+set kpx_dotool {dotool}
+set kpx_dotool_prefix "typehold 2\ntype "
+set kpx_notify "notify-send -u low \"Password inserted\" -t 1000"
+# set kpxc_timeout 60
+#+end_src
+
+If kpx_timeout is specified, the database will automatically lock after the
+given minutes if no password type was tried by the user.
 
 This is primarily meant to be invoked by pressing hotkey (either configured in the DE, or in a hotkey daemon such as [[https://github.com/baskerville/sxhkd][sxhkd]]). An example for sxhkd may look:
 
 #+begin_src txt
 super + p
-  [ -e /tmp/keepassxc-dmenu/run ] && echo y > /tmp/keepassxc-dmenu/run || keepassxc-dmenu >/dev/null 2>&1
+  keepassxc-dmenu >/dev/null 2>&1
 
 super + alt + p
   echo exit > /tmp/keepassxc-dmenu/run
