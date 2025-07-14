@@ -32,74 +32,79 @@ if {![info exists kpxc_database_path]} {
     die "Database file not found at $kpxc_database_path"
 }
 
-
 defined_or_default kpxc_dmenu {rofi -dmenu -i}
 defined_or_default kpxc_pinentry /usr/bin/pinentry-qt
+defined_or_default kpxc_dotool "xdotool -"
+defined_or_default kpxc_dotool_prefix "type "
+defined_or_default kpxc_notify ""
 
 set kpxc_appdir /tmp/keepassxc-dmenu/
 file mkdir $kpxc_appdir
 exec chmod 700 $kpxc_appdir
 cd $kpxc_appdir
 
+proc is_empty {string} {
+    expr {![binary scan $string c c]}
+}
+
+proc not_empty {string} {
+    expr {![is_empty $string]}
+}
 
 proc pinentry_get {} {
     spawn "$::kpxc_pinentry"
     expect "OK"
-    send -- "SETDESC Enter Password for $::kpxc_database_path:\r"
+    exp_send -- "SETDESC Enter Password for $::kpxc_database_path:\r"
     expect "OK"
-    send -- "GETPIN\r"
+    exp_send -- "GETPIN\r"
     expect {
         "OK" { regexp -line {D (.*)\r} $expect_out(buffer) line pw }
         "cancelled" { die "User didn't input password, exiting." }
     }
-    send -- "BYE\r"
+    exp_send -- "BYE\r"
     wait
     return $pw
 }
 
-proc enter_pw {kpxc_pw} {
-    spawn keepassxc-cli open "$::kpxc_database_path"
-    expect "Enter password"
-    match_max 5000
-    set spawn_id $expect_out(spawn_id)
-
-    send -- "$kpxc_pw\r"
-    expect "> "
-    if {[regexp {Invalid credentials} $expect_out(buffer) match]} {
-        die "Wrong Password"
-    }
-         
-    send -- "ls -R -f\r"
-    expect "> "
+# asks the user for a password and prints it
+proc enter_pw {} {
+    global kpxc_pid
+    global kpxc_basedel
+    global kpxc_dotool
+    global kpxc_dotool_prefix
+    global kpxc_notify
+    set spawn_id $kpxc_pid
+    exp_send -i $kpxc_pid -- "ls -R -f\r"
+    expect "\n$kpxc_basedel"
 
     set kpxc_accounts {}
     foreach line [lrange [split $expect_out(buffer) "\n"] 1 end] {
         set item [string trim $line]
-        if {($item eq "") || ([string index $item end] in {">" "/"}) || [string match "Recycle Bin/*" $item]} {
+        if {($item eq "") || ([string index $item end] in {">" "/"})  || [string match "Recycle Bin/*" $item]} {
             continue
         }
         lappend kpxc_accounts $item
     }
-
-    if {[catch {exec {*}$::kpxc_dmenu << [join $kpxc_accounts "\n"]} result] == 0} {
-        send -- "show -s \"$result\"\r"
-        expect "> "
-
-        if {[regexp -line {^Password: (.*)\r} $expect_out(buffer) line kpxc_entry_pw]} {
-            exec {*}{xdotool type --clearmodifiers --file -} << $kpxc_entry_pw
+    # Promt the user with a list of all passwords
+    if {[catch {exec {*}$::kpxc_dmenu << [join $kpxc_accounts "\n"] 2>/dev/null} result] == 0} {
+        exp_send -i $kpxc_pid -- "show -s \"$result\"\r"
+        expect "\n$kpxc_basedel"
+        if { [regexp -line {^Password: (.*)\r} $expect_out(buffer) line kpxc_entry_pw ] } {
+            exec {*}$::kpxc_dotool << [string cat $kpxc_dotool_prefix "$kpxc_entry_pw"]
+            # Send a notification to the user if the kpxc_notify variable was set in the config
+            if { [not_empty $kpxc_notify ] } {
+                catch {exec {*}$::kpxc_notify}
+            }
         }
     }
-    
+
     unset kpxc_accounts
-    send -- "quit\r"
-    wait
-    close $spawn_id
 }
 
 proc readpipe {} {
     if {[gets $::pipe line] > 0} {
         if {![string eq $line exit]} {
-            run $::kpxc_pw
+            run
         } else {
             cleanup
         }
@@ -113,31 +118,57 @@ proc cleanup {} {
         file delete -force -- $::kpxc_appdir
         exit 1
     }
+    exp_send -i $::kpxc_pid "quit\r"
+    wait
+    close $::kpxc_pid
 }
 
-proc run {kpxc_pw} {
+proc run {} {
     try {
-        enter_pw $kpxc_pw
+        enter_pw
     } on error {result option} {
         puts stderr $result
     }
 }
+set kpxc_pipe run
 
+### If another instance is already running, notify it via it's pipe and die
+if { [ file exists $kpxc_pipe ] } {
+    set pipe [open $kpxc_pipe w]
+    puts $pipe y
+    close $pipe
+    exit
+
+}
 
 ### GET PASSWORD
-set kpxc_pw [pinentry_get]
-enter_pw $kpxc_pw
+#
+match_max -d 500000
+spawn keepassxc-cli open "$::kpxc_database_path"
+set kpxc_pid $spawn_id
+expect "Enter password"
+exp_send -- "[pinentry_get]\r"
+expect "> "
+if {[regexp {Invalid credentials} $expect_out(buffer) match]} {
+    die "Wrong Password"
+}
+exp_send -- "db-info\r"
+expect "Name: "
+expect "\r"
+set kpxc_basedel [string trimright $expect_out(buffer)]
+append kpxc_basedel "> "
+expect "\n$kpxc_basedel"
+enter_pw
 
-
-### Go into background and listen on the FIFO
+### Go into background
 if {[fork] != 0} {
+    puts "Going into background"
     exit
 }
 
-disconnect
+#disconnect
 trap {cleanup} {SIGTERM SIGINT}
 
-set kpxc_pipe run
 exec mkfifo $kpxc_pipe
 
 set pipe [open "$kpxc_pipe" {RDWR NONBLOCK}]
