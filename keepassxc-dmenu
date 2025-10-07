@@ -60,7 +60,6 @@ proc pinentry_get {} {
 proc enter_pw {kpxc_pw} {
     spawn keepassxc-cli open "$::kpxc_database_path"
     expect "Enter password"
-    match_max 5000
     set spawn_id $expect_out(spawn_id)
 
     send -- "$kpxc_pw\r"
@@ -68,12 +67,15 @@ proc enter_pw {kpxc_pw} {
     if {[regexp {Invalid credentials} $expect_out(buffer) match]} {
         die "Wrong Password"
     }
-         
+
+    match_max 10000
     send -- "ls -R -f\r"
     expect "> "
 
+    regsub -all {\x1b\[[0-?]*[ -/]*[@-~]} $expect_out(buffer) "" buffer
+
     set kpxc_accounts {}
-    foreach line [lrange [split $expect_out(buffer) "\n"] 1 end] {
+    foreach line [lrange [split $buffer "\r\n"] 1 end] {
         set item [string trim $line]
         if {($item eq "") || ([string index $item end] in {">" "/"}) || [string match "Recycle Bin/*" $item]} {
             continue
