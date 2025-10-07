@@ -36,10 +36,20 @@ if {![info exists kpxc_database_path]} {
 defined_or_default kpxc_dmenu {rofi -dmenu -i}
 defined_or_default kpxc_pinentry /usr/bin/pinentry-qt
 
-set kpxc_appdir /tmp/keepassxc-dmenu/
+set tmpdir [expr {[info exists ::env(TMPDIR)] ? $::env(TMPDIR) : "/tmp"}]
+set kpxc_appdir [file join $tmpdir keepassxc-dmenu]
+set kpxc_pipe [file join $kpxc_appdir run]
+
+if {[file exists $kpxc_pipe]} {
+    set f [open $kpxc_pipe wb]
+    puts $f "run"
+    close $f
+    exit 0
+}
+
 file mkdir $kpxc_appdir
-exec chmod 700 $kpxc_appdir
-cd $kpxc_appdir
+file attributes $kpxc_appdir -permissions 0700
+exec mkfifo $kpxc_pipe
 
 
 proc pinentry_get {} {
@@ -138,9 +148,6 @@ if {[fork] != 0} {
 
 disconnect
 trap {cleanup} {SIGTERM SIGINT}
-
-set kpxc_pipe run
-exec mkfifo $kpxc_pipe
 
 set pipe [open "$kpxc_pipe" {RDWR NONBLOCK}]
 fileevent $pipe readable readpipe

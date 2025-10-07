@@ -25,10 +25,11 @@ set kpxc_pinentry /usr/bin/pinentry-qt
 
 This is primarily meant to be invoked by pressing hotkey (either configured in the DE, or in a hotkey daemon such as [[https://github.com/baskerville/sxhkd][sxhkd]]). An example for sxhkd may look:
 
-#+begin_src txt
+#+begin_src sxhkdrc
 super + p
-  [ -e /tmp/keepassxc-dmenu/run ] && echo y > /tmp/keepassxc-dmenu/run || keepassxc-dmenu >/dev/null 2>&1
+  keepassxc-dmenu
 
+# optionally
 super + alt + p
-  echo exit > /tmp/keepassxc-dmenu/run
+  pkill -x keepassxc-dmenu
 #+end_src
