@@ -68,7 +68,7 @@ proc pinentry_get {} {
 }
 
 proc enter_pw {kpxc_pw} {
-    spawn keepassxc-cli open "$::kpxc_database_path"
+    spawn keepassxc-cli open "$::kpxc_database_path" {*}$::kpxc_args
     expect "Enter password"
     set spawn_id $expect_out(spawn_id)
 

@@ -21,6 +21,7 @@ set kpxc_database_path $::env(HOME)/Passwords.kdbx
 set kpxc_dmenu {rofi -dmenu -no-custom -i}
 set kpxc_pinentry /usr/bin/pinentry-qt
 # set kpxc_timeout 60
+# set kpxc_args -k /path/to/keyfile
 #+end_src
 
 This is primarily meant to be invoked by pressing hotkey (either configured in the DE, or in a hotkey daemon such as [[https://github.com/baskerville/sxhkd][sxhkd]]). An example for sxhkd may look:
