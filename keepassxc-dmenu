@@ -35,6 +35,7 @@ if {![info exists kpxc_database_path]} {
 
 defined_or_default kpxc_dmenu {rofi -dmenu -i}
 defined_or_default kpxc_pinentry /usr/bin/pinentry-qt
+defined_or_default kpxc_args {}
 
 set tmpdir [expr {[info exists ::env(TMPDIR)] ? $::env(TMPDIR) : "/tmp"}]
 set kpxc_appdir [file join $tmpdir keepassxc-dmenu]
