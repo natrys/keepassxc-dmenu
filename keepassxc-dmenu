@@ -16,6 +16,7 @@ proc defined_or_default {varname def} {
 
 proc die {msg} {
     puts stderr $msg
+    cleanup
     exit 1
 }
 
@@ -71,7 +72,6 @@ proc pinentry_get {} {
 proc enter_pw {kpxc_pw} {
     spawn keepassxc-cli open "$::kpxc_database_path" {*}$::kpxc_args
     expect "Enter password"
-    set spawn_id $expect_out(spawn_id)
 
     send -- "$kpxc_pw\r"
     expect "> "
