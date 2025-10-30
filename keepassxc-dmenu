@@ -133,13 +133,18 @@ proc run {kpxc_pw} {
         enter_pw $kpxc_pw
     } on error {result option} {
         puts stderr $result
+        cleanup
     }
 }
 
 
 ### GET PASSWORD
-set kpxc_pw [pinentry_get]
-enter_pw $kpxc_pw
+try {
+    set kpxc_pw [pinentry_get]
+    enter_pw $kpxc_pw
+} on error {result option} {
+    cleanup
+}
 
 
 ### Go into background and listen on the FIFO
@@ -148,9 +153,9 @@ if {[fork] != 0} {
 }
 
 disconnect
-trap {cleanup} {SIGTERM SIGINT}
+trap {cleanup} [list SIGTERM SIGINT]
 
-set pipe [open "$kpxc_pipe" {RDWR NONBLOCK}]
+set pipe [open "$kpxc_pipe" [list RDWR NONBLOCK]]
 fileevent $pipe readable readpipe
 
 if {[info exists kpxc_timeout]} {
