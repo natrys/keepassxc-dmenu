@@ -94,7 +94,7 @@ proc enter_pw {kpxc_pw} {
         lappend kpxc_accounts $item
     }
 
-    if {[catch {exec {*}$::kpxc_dmenu << [join $kpxc_accounts "\n"]} result] == 0} {
+    if {[catch {exec {*}$::kpxc_dmenu << [join $kpxc_accounts "\n"] 2>/dev/null} result] == 0} {
         send -- "show -s \"$result\"\r"
         expect "> "
 
@@ -102,7 +102,7 @@ proc enter_pw {kpxc_pw} {
             exec {*}{xdotool type --clearmodifiers --file -} << $kpxc_entry_pw
         }
     }
-    
+
     unset kpxc_accounts
     send -- "quit\r"
     wait
